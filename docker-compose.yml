@@ -1,0 +1,63 @@
+services:
+    # ===============================
+    # 🧱 Application Laravel
+    # ===============================
+    appgroupe:
+        build:
+            context: .
+            args:
+                APP_ENV: ${APP_ENV:-local}
+        container_name: laravel-app-groupe
+        restart: unless-stopped
+        environment:
+            APP_ENV: ${APP_ENV:-local}
+            APP_DEBUG: ${APP_DEBUG:-1}
+            APP_URL: ${APP_URL:-http://localhost}
+            DB_CONNECTION: pgsql
+            DB_HOST: ${DB_HOST}           # Adresse fournie par Render
+            DB_PORT: ${DB_PORT:-5432}     # Port de Render PostgreSQL
+            DB_DATABASE: ${DB_DATABASE}   # Nom base Render
+            DB_USERNAME: ${DB_USERNAME}   # Utilisateur base Render
+            DB_PASSWORD: ${DB_PASSWORD}   # Mot de passe base Render
+        volumes:
+            - ./:/var/www/html
+        networks:
+            - laravel-net-groupe
+        ports:
+            - "8082:8000"
+        command: >
+            sh -c "if [ '${APP_ENV}' = 'production' ]; then
+              php-fpm;
+            else
+              php artisan serve --host=0.0.0.0 --port=8000;
+            fi"
+
+    # ===============================
+    # 🌐 Serveur Web Nginx (prod)
+    # ===============================
+    webservergroupe:
+        image: nginx:alpine
+        container_name: laravel-nginx-groupe
+        restart: unless-stopped
+        depends_on:
+            - appgroupe
+        ports:
+            - "8081:80"
+        volumes:
+            - ./:/var/www/html
+            - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+        networks:
+            - laravel-net-groupe
+        command: >
+            sh -c "if [ '${APP_ENV}' = 'production' ]; then nginx -g 'daemon off;'; else sleep infinity; fi"
+
+# ===============================
+# 🔗 Réseau & volumes partagés
+# ===============================
+networks:
+  laravel-net-groupe:
+    name: laravel-networks-groupe
+    driver: bridge
+
+volumes:
+    db_data_groupe:
